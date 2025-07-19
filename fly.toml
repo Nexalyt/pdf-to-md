@@ -1,0 +1,35 @@
+# fly.toml app configuration file generated for mineru-api
+app = "mineru-api"
+primary_region = "iad"
+
+[build]
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[http_service.checks]]
+  interval = "10s"
+  grace_period = "5s"
+  method = "get"
+  path = "/docs"
+  protocol = "http"
+  timeout = "2s"
+  tls_skip_verify = false
+
+[machine]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 2
+
+[[vm]]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 2
