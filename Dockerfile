@@ -51,7 +51,7 @@ RUN pip install --no-cache-dir \
     opencv-python-headless>=4.11.0.86
 
 # Install the package itself
-RUN pip install --no-cache-dir -e .[api]
+RUN pip install --no-cache-dir -e .[api,pipeline]
 
 # Skip model downloads for now to avoid build timeout
 # RUN mineru-models-download --auto
