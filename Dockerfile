@@ -53,8 +53,8 @@ RUN pip install --no-cache-dir \
 # Install the package itself
 RUN pip install --no-cache-dir -e .[api,pipeline]
 
-# Skip model downloads for now to avoid build timeout
-# RUN mineru-models-download --auto
+# Download models during build to avoid runtime delays
+RUN mineru-models-download --auto
 
 # Create output directory with proper permissions
 RUN mkdir -p /app/output && chmod 755 /app/output

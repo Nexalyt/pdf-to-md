@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(flyctl deploy:*)",
+      "WebFetch(domain:pdf-to-md.fly.dev)"
+    ],
+    "deny": []
+  }
+}
