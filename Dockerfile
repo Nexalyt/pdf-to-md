@@ -17,12 +17,11 @@ RUN apt-get update && apt-get install -y \
     libgdal-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e .[api,pipeline,vlm]
-
-# Copy application code
+# Copy application code first
 COPY . .
+
+# Install Python dependencies (now that all files are copied)
+RUN pip install --no-cache-dir -e .[api,pipeline,vlm]
 
 # Download required models during build
 RUN mineru-models-download --auto
