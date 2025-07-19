@@ -12,24 +12,21 @@ primary_region = "iad"
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
   processes = ["app"]
 
 [[http_service.checks]]
-  interval = "30s"
-  grace_period = "30s"
+  interval = "60s"
+  grace_period = "180s"
   method = "get"
   path = "/docs"
   protocol = "http"
-  timeout = "10s"
+  timeout = "30s"
   tls_skip_verify = false
 
 [machine]
-  memory = "2gb"
-  cpu_kind = "shared"
-  cpus = 2
+  memory = "32gb"
+  cpu_kind = "performance"
+  cpus = 8
+  gpu_kind = "a100-40gb"
 
-[[vm]]
-  memory = "2gb"
-  cpu_kind = "shared"
-  cpus = 2
