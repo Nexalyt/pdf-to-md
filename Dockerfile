@@ -1,39 +1,25 @@
-# Use Python 3.11 slim image as base
-FROM python:3.11-slim
+# Multi-stage build to reduce final image size
+FROM python:3.11-slim as builder
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     make \
     build-essential \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    libgdal-dev \
-    libfontconfig1 \
-    libxcb1 \
-    libopencv-dev \
-    pkg-config \
-    wget \
-    curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Update pip and install build tools
-RUN pip install --upgrade pip setuptools wheel
-
-# Copy application code first
+# Copy application code
 COPY . .
 
-# Install Python dependencies in stages to avoid memory issues
-# First install core dependencies
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install core dependencies
 RUN pip install --no-cache-dir \
     numpy>=1.21.6 \
     pillow>=11.0.0 \
@@ -41,8 +27,8 @@ RUN pip install --no-cache-dir \
     click>=8.1.7 \
     loguru>=0.7.2
 
-# Install PyTorch with CUDA support for GPU acceleration
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Install CPU-only PyTorch to reduce size significantly
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Install other ML dependencies
 RUN pip install --no-cache-dir \
@@ -53,8 +39,28 @@ RUN pip install --no-cache-dir \
 # Install the package itself
 RUN pip install --no-cache-dir -e .[api,pipeline]
 
+# Production stage
+FROM python:3.11-slim
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libgomp1 \
+    libfontconfig1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app /app
+
 # Download models during build to avoid runtime delays
-RUN /bin/bash -c "mineru-models-download -s huggingface -m all"
+RUN /bin/bash -c "mineru-models-download -s huggingface -m pipeline" && \
+    rm -rf /root/.cache/pip
 
 # Create output directory with proper permissions
 RUN mkdir -p /app/output && chmod 755 /app/output
