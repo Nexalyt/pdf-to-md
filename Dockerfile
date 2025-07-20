@@ -41,8 +41,8 @@ RUN pip install --no-cache-dir \
     click>=8.1.7 \
     loguru>=0.7.2
 
-# Install PyTorch first (CPU version for smaller footprint)
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# Install PyTorch with CUDA support for GPU acceleration
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 # Install other ML dependencies
 RUN pip install --no-cache-dir \
