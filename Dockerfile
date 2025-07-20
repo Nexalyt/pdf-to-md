@@ -70,9 +70,8 @@ RUN /bin/bash -c "mineru-models-download -s huggingface -m pipeline" && \
 ENV MINERU_MODEL_SOURCE=local
 
 # Create models directory and copy downloaded models there
-RUN mkdir -p /app/models && \
-    SNAPSHOT_DIR=$(find /root/.cache/huggingface/hub/models--opendatalab--PDF-Extract-Kit-1.0/snapshots -maxdepth 1 -type d | head -2 | tail -1) && \
-    cp -r "$SNAPSHOT_DIR"/* /app/models/ && \
+RUN SNAPSHOT_DIR=$(find /root/.cache/huggingface/hub/models--opendatalab--PDF-Extract-Kit-1.0/snapshots -maxdepth 1 -type d | head -2 | tail -1) && \
+    cp -r "$SNAPSHOT_DIR"/models /app/ && \
     echo "{\"models-dir\":{\"pipeline\":\"/app/models\",\"vlm\":\"\"},\"config_version\":\"1.3.0\"}" > /root/mineru.json
 
 # Set environment variable to use the config file  
