@@ -42,12 +42,14 @@ RUN pip install --no-cache-dir -e .[api,pipeline]
 # Production stage
 FROM python:3.11-slim
 
-# Install minimal runtime dependencies
+# Install minimal runtime dependencies including CUDA libraries
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libgomp1 \
     libfontconfig1 \
+    wget \
+    gnupg2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -58,9 +60,27 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app /app
 
+# Note: CUDA libraries will be provided by Fly.io GPU runtime
+
 # Download models during build to avoid runtime delays
 RUN /bin/bash -c "mineru-models-download -s huggingface -m pipeline" && \
     rm -rf /root/.cache/pip
+
+# Set environment variable to use local models and avoid downloads
+ENV MINERU_MODEL_SOURCE=local
+
+# Create models directory and copy downloaded models there
+RUN mkdir -p /app/models && \
+    SNAPSHOT_DIR=$(find /root/.cache/huggingface/hub/models--opendatalab--PDF-Extract-Kit-1.0/snapshots -maxdepth 1 -type d | head -2 | tail -1) && \
+    cp -r "$SNAPSHOT_DIR"/* /app/models/ && \
+    echo "{\"models-dir\":{\"pipeline\":\"/app/models\",\"vlm\":\"\"},\"config_version\":\"1.3.0\"}" > /root/mineru.json
+
+# Set environment variable to use the config file  
+ENV MINERU_TOOLS_CONFIG_JSON=/root/mineru.json
+
+# Verify models are in place (debug step)
+RUN ls -la /app/models/ && \
+    cat /root/mineru.json
 
 # Create output directory with proper permissions
 RUN mkdir -p /app/output && chmod 755 /app/output

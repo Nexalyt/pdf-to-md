@@ -17,17 +17,16 @@ primary_region = "iad"
   processes = ["app"]
 
 [[http_service.checks]]
-  interval = "60s"
-  grace_period = "180s"
+  interval = "120s"
+  grace_period = "300s"
   method = "get"
   path = "/health"
   protocol = "http"
-  timeout = "30s"
+  timeout = "60s"
   tls_skip_verify = false
 
 [machine]
-  memory = "32gb"
+  memory = "64gb"
   cpu_kind = "performance"
-  cpus = 8
-  gpu_kind = "a100-40gb"
+  cpus = 16
 
