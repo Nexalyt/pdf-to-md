@@ -6,6 +6,7 @@ primary_region = "iad"
 
 [env]
   PORT = "8080"
+  SENTRY_ENVIRONMENT = "production"
 
 [http_service]
   internal_port = 8080
@@ -19,7 +20,7 @@ primary_region = "iad"
   interval = "60s"
   grace_period = "180s"
   method = "get"
-  path = "/docs"
+  path = "/health"
   protocol = "http"
   timeout = "30s"
   tls_skip_verify = false

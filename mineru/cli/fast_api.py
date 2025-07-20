@@ -2,6 +2,7 @@ import uuid
 import os
 import uvicorn
 import click
+import sentry_sdk
 from pathlib import Path
 from glob import glob
 from fastapi import FastAPI, UploadFile, File, Form
@@ -15,8 +16,42 @@ from mineru.cli.common import aio_do_parse, read_fn, pdf_suffixes, image_suffixe
 from mineru.utils.cli_parser import arg_parse
 from mineru.version import __version__
 
-app = FastAPI()
+# Initialize Sentry SDK before creating FastAPI app
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN", "https://99d06b36f4d6e2507646f4ee49237bd8@o4509698369257472.ingest.us.sentry.io/4509698396127232"),
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for tracing.
+    traces_sample_rate=1.0,
+    # Set profile_session_sample_rate to 1.0 to profile 100%
+    # of profile sessions.
+    profile_session_sample_rate=1.0,
+    # Set profile_lifecycle to "trace" to automatically
+    # run the profiler on when there is an active transaction
+    profile_lifecycle="trace",
+    environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+)
+
+app = FastAPI(
+    title="MinerU API",
+    description="PDF to Markdown conversion API with ML models",
+    version="2.0.0"
+)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Add Sentry debug endpoint for verification
+@app.get("/sentry-debug")
+async def trigger_error():
+    """Endpoint to test Sentry error tracking"""
+    division_by_zero = 1 / 0
+
+# Add health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring"""
+    return {"status": "healthy", "service": "mineru-api", "version": __version__}
 
 def encode_image(image_path: str) -> str:
     """Encode image using base64"""
@@ -25,7 +60,7 @@ def encode_image(image_path: str) -> str:
 
 
 def get_infer_result(file_suffix_identifier: str, pdf_name: str, parse_dir: str) -> Optional[str]:
-    """从结果文件中读取推理结果"""
+    """从结果文件中读取推理结果 | en: Read inference results from the result file"""
     result_file_path = os.path.join(parse_dir, f"{pdf_name}{file_suffix_identifier}")
     if os.path.exists(result_file_path):
         with open(result_file_path, "r", encoding="utf-8") as fp:
@@ -52,15 +87,29 @@ async def parse_pdf(
         end_page_id: int = Form(99999),
 ):
 
-    # 获取命令行配置参数
+    # 获取命令行配置参数 | en: Get command line configuration parameters
     config = getattr(app.state, "config", {})
 
     try:
-        # 创建唯一的输出目录
+        # Add Sentry context for better error tracking and debugging
+        with sentry_sdk.configure_scope() as scope:
+            scope.set_tag("backend", backend)
+            scope.set_tag("parse_method", parse_method)
+            scope.set_context("files", {
+                "count": len(files),
+                "names": [f.filename for f in files]
+            })
+            scope.set_context("config", {
+                "lang_list": lang_list,
+                "formula_enable": formula_enable,
+                "table_enable": table_enable,
+            })
+
+        # 创建唯一的输出目录 | en: Create a unique output directory
         unique_dir = os.path.join(output_dir, str(uuid.uuid4()))
         os.makedirs(unique_dir, exist_ok=True)
 
-        # 处理上传的PDF文件
+        # 处理上传的PDF文件 | en: Process uploaded PDF files
         pdf_file_names = []
         pdf_bytes_list = []
 
@@ -68,37 +117,35 @@ async def parse_pdf(
             content = await file.read()
             file_path = Path(file.filename)
 
-            # 如果是图像文件或PDF，使用read_fn处理
-            if file_path.suffix.lower() in pdf_suffixes + image_suffixes:
-                # 创建临时文件以便使用read_fn
-                temp_path = Path(unique_dir) / file_path.name
-                with open(temp_path, "wb") as f:
-                    f.write(content)
-
-                try:
-                    pdf_bytes = read_fn(temp_path)
-                    pdf_bytes_list.append(pdf_bytes)
-                    pdf_file_names.append(file_path.stem)
-                    os.remove(temp_path)  # 删除临时文件
-                except Exception as e:
-                    return JSONResponse(
-                        status_code=400,
-                        content={"error": f"Failed to load file: {str(e)}"}
-                    )
-            else:
+            if file_path.suffix.lower() not in pdf_suffixes + image_suffixes:
                 return JSONResponse(
                     status_code=400,
                     content={"error": f"Unsupported file type: {file_path.suffix}"}
                 )
 
 
-        # 设置语言列表，确保与文件数量一致
+            # 创建临时文件以便使用read_fn | en: Create a temporary file for read_fn
+            temp_path = Path(unique_dir) / file_path.name
+            with open(temp_path, "wb") as f:
+                f.write(content)
+
+            try:
+                pdf_bytes = read_fn(temp_path)
+                pdf_bytes_list.append(pdf_bytes)
+                pdf_file_names.append(file_path.stem)
+                os.remove(temp_path)  # 删除临时文件 | en: Remove temporary file after reading
+            except Exception as e:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": f"Failed to load file: {str(e)}"}
+                )
+        # 设置语言列表，确保与文件数量一致 | en: Set language list to match the number of files
         actual_lang_list = lang_list
         if len(actual_lang_list) != len(pdf_file_names):
-            # 如果语言列表长度不匹配，使用第一个语言或默认"ch"
+            # 如果语言列表长度不匹配，使用第一个语言或默认"ch" | en: If the language list length does not match, use the first language or default to "ch"
             actual_lang_list = [actual_lang_list[0] if actual_lang_list else "ch"] * len(pdf_file_names)
 
-        # 调用异步处理函数
+        # 调用异步处理函数 | en: Call the asynchronous processing function
         await aio_do_parse(
             output_dir=unique_dir,
             pdf_file_names=pdf_file_names,
@@ -121,7 +168,7 @@ async def parse_pdf(
             **config
         )
 
-        # 构建结果路径
+        # ch:构建结果路径 | en: Build result paths
         result_dict = {}
         for pdf_name in pdf_file_names:
             result_dict[pdf_name] = {}
@@ -161,10 +208,15 @@ async def parse_pdf(
             }
         )
     except Exception as e:
+        # Sentry will automatically capture this exception
+        sentry_sdk.capture_exception(e)
         logger.exception(e)
         return JSONResponse(
             status_code=500,
-            content={"error": f"Failed to process file: {str(e)}"}
+            content={
+                "error": f"Failed to process file: {str(e)}",
+                "request_id": str(uuid.uuid4())
+            }
         )
 
 
@@ -175,7 +227,7 @@ async def parse_pdf(
 @click.option('--reload', is_flag=True, help='Enable auto-reload (development mode)')
 def main(ctx, host, port, reload, **kwargs):
 
-    kwargs.update(arg_parse(ctx))
+    kwargs |= arg_parse(ctx)
 
     # 将配置参数存储到应用状态中
     app.state.config = kwargs
@@ -185,6 +237,8 @@ def main(ctx, host, port, reload, **kwargs):
     print("The API documentation can be accessed at the following address:")
     print(f"- Swagger UI: http://{host}:{port}/docs")
     print(f"- ReDoc: http://{host}:{port}/redoc")
+    print(f"- Sentry Debug: http://{host}:{port}/sentry-debug")
+    print(f"- Health Check: http://{host}:{port}/health")
 
     uvicorn.run(
         "mineru.cli.fast_api:app",

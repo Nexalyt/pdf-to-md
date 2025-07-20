@@ -75,6 +75,7 @@ api = [
     "fastapi",
     "python-multipart",
     "uvicorn",
+    "sentry-sdk[fastapi]>=1.40.0",
 ]
 gradio = [
     "gradio>=5.34,<6",

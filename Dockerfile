@@ -54,7 +54,7 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir -e .[api,pipeline]
 
 # Download models during build to avoid runtime delays
-RUN mineru-models-download --auto
+RUN /bin/bash -c "mineru-models-download -s huggingface -m all"
 
 # Create output directory with proper permissions
 RUN mkdir -p /app/output && chmod 755 /app/output
