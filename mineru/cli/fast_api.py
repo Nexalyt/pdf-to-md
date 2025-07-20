@@ -16,23 +16,25 @@ from mineru.cli.common import aio_do_parse, read_fn, pdf_suffixes, image_suffixe
 from mineru.utils.cli_parser import arg_parse
 from mineru.version import __version__
 
-# Initialize Sentry SDK before creating FastAPI app
-sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN", "https://99d06b36f4d6e2507646f4ee49237bd8@o4509698369257472.ingest.us.sentry.io/4509698396127232"),
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-    send_default_pii=True,
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=1.0,
-    # Set profile_session_sample_rate to 1.0 to profile 100%
-    # of profile sessions.
-    profile_session_sample_rate=1.0,
-    # Set profile_lifecycle to "trace" to automatically
-    # run the profiler on when there is an active transaction
-    profile_lifecycle="trace",
-    environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
-)
+# Initialize Sentry SDK before creating FastAPI app (only if DSN is provided)
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        # Add data like request headers and IP for users,
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=True,
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for tracing.
+        traces_sample_rate=1.0,
+        # Set profile_session_sample_rate to 1.0 to profile 100%
+        # of profile sessions.
+        profile_session_sample_rate=1.0,
+        # Set profile_lifecycle to "trace" to automatically
+        # run the profiler on when there is an active transaction
+        profile_lifecycle="trace",
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+    )
 
 app = FastAPI(
     title="MinerU API",

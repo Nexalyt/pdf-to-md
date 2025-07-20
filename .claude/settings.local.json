@@ -4,7 +4,13 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(flyctl deploy:*)",
-      "WebFetch(domain:pdf-to-md.fly.dev)"
+      "WebFetch(domain:pdf-to-md.fly.dev)",
+      "Bash(flyctl logs:*)",
+      "Bash(flyctl auth:*)",
+      "Bash(flyctl status:*)",
+      "Bash(flyctl secrets:*)",
+      "Bash(flyctl machine start:*)",
+      "Bash(timeout 30 flyctl logs -a pdf-to-md)"
     ],
     "deny": []
   }
